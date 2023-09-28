@@ -1,4 +1,8 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Xml.Serialization;
 
 namespace AccountManaging
 {
@@ -12,7 +16,7 @@ namespace AccountManaging
         void Query();
 
     }
-    class Account : IAccount
+    public class Account : IAccount, IComparable
     {
         private int accountId;
         private string firstName;
@@ -39,6 +43,32 @@ namespace AccountManaging
         public string LastName { get => lastName; set => lastName = value; }
         public decimal Balance { get => balance; set => balance = value; }
 
+
+        public int CompareTo(object? obj)
+        {
+            if (obj is not Account)
+            {
+                throw new ArgumentException();
+            }
+            Account account = obj as Account;
+            int compare = this.AccountId.CompareTo(account.AccountId);
+            if (compare != 0)
+            {
+                return compare;
+            }
+            compare = this.FirstName.CompareTo(account.FirstName);
+            if (compare != 0)
+            {
+                return compare;
+            }
+            compare = this.LastName.CompareTo(account.LastName);
+            if (compare != 0)
+            {
+                return compare;
+            }
+            return this.Balance.CompareTo(account.Balance);
+        }
+
         public void FillInfo()
         {
             Console.Write("Account ID: ");
@@ -63,26 +93,103 @@ namespace AccountManaging
         }
 
     }
+
+    class AccountIdComparer : IComparer
+    {
+        public int Compare(object? x, object? y)
+        {
+            if (x is Account && y is Account)
+            {
+                return (x as Account).AccountId.CompareTo((y as Account).AccountId);
+            }
+            return 0;
+        }
+    }
+    class FirstNameComparer : IComparer
+    {
+        public int Compare(object? x, object? y)
+        {
+            if (x is Account && y is Account)
+            {
+                return string.Compare((x as Account).FirstName, (y as Account).FirstName);
+            }
+            return 0;
+        }
+    }
+
+    class LastNameComparer : IComparer
+    {
+        public int Compare(object? x, object? y)
+        {
+            if (x is Account && y is Account)
+            {
+                return string.Compare((x as Account).LastName, (y as Account).LastName);
+            }
+            return 0;
+        }
+    }
+
+    class BalanceComparer : IComparer
+    {
+        public int Compare(object? x, object? y)
+        {
+            if (x is Account && y is Account)
+            {
+                return (x as Account).Balance.CompareTo((y as Account).Balance);
+            }
+            return 0;
+        }
+    }
     class AccountList
     {
         private ArrayList Accounts = new ArrayList();
+
+
+        public Account this[int index]
+        {
+            get
+            {
+                if (index >= 0 && index < Accounts.Count)
+                {
+                    return (Account)Accounts[index];
+                }
+                else
+                {
+                    throw new IndexOutOfRangeException();
+                }
+            }
+            set
+            {
+                if (index >= 0 && index < Accounts.Count)
+                {
+                    Accounts[index] = value;
+                }
+                else if (index == Accounts.Count)
+                {
+                    Accounts.Add(value);
+                }
+                else throw new IndexOutOfRangeException();
+            }
+        }
         public void LoadFile()
         {
-            Console.Write("Nhap ten file de load: ");
+            Console.Write("Nhap ten file de load (de trong de thoat): ");
             string fileName = Console.ReadLine();
+            if (fileName == "")
+            {
+                return;
+            }
+            if (!fileName.EndsWith(".xml"))
+            {
+                fileName += ".xml";
+            }
             try
             {
                 FileStream fileIn = new FileStream(fileName, FileMode.Open, FileAccess.Read);
-                StreamReader streamReader = new StreamReader(fileIn);
+                XmlSerializer xmlSerializer = new XmlSerializer(typeof(ArrayList), new Type[] { typeof(Account) });
                 Accounts.Clear();
-                string str;
-                while ((str = streamReader.ReadLine()) != null)
-                {
-                    string[] list = str.Split(",");
-                    Account account = new Account(int.Parse(list[0]), list[1], list[2], decimal.Parse(list[3]));
-                    Accounts.Add(account);
-                }
-                streamReader.Close();
+                Accounts = xmlSerializer.Deserialize(fileIn) as ArrayList;
+                Console.WriteLine("Load du lieu thanh cong");
                 fileIn.Close();
             }
             catch (IOException ex)
@@ -93,17 +200,27 @@ namespace AccountManaging
         public void SaveFile()
         {
 
-            Console.Write("Nhap ten file de luu: ");
+            // Code that uses obsolete API.
+            // ...
+
+            // Re-enable the warning.
+            Console.Write("Nhap ten file de luu (de trong de thoat): ");
             string fileName = Console.ReadLine();
+            if (fileName == "")
+            {
+                return;
+            }
+            if (!fileName.EndsWith(".xml"))
+            {
+                fileName += ".xml";
+            }
             try
             {
                 FileStream fileOut = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write);
+                XmlSerializer xmlSerializer = new XmlSerializer(typeof(ArrayList), new Type[] { typeof(Account) });
                 StreamWriter streamWriter = new StreamWriter(fileOut);
-
-                foreach (Account account in Accounts)
-                {
-                    streamWriter.WriteLine("{0},{1},{2},{3}", account.AccountId, account.FirstName, account.LastName, account.Balance);
-                }
+                xmlSerializer.Serialize(streamWriter, Accounts);
+                Console.WriteLine("Luu du lieu thanh cong");
                 streamWriter.Close();
                 fileOut.Close();
             }
@@ -129,5 +246,29 @@ namespace AccountManaging
             }
 
         }
+        public int BinarySearch(IComparer comparer, object key)
+        {
+            return Accounts.BinarySearch(key, comparer);
+        }
+
+        public void Sort()
+        {
+            Accounts.Sort();
+            Console.WriteLine("-----------Da sort----------");
+        }
+
+        public void Sort(IComparer comparer)
+        {
+            Accounts.Sort(comparer);
+            Console.WriteLine("-----------Da sort----------");
+
+        }
+
+        public void Remove(int index)
+        {
+            Accounts.RemoveAt(index);
+            Console.WriteLine("-----------Da xoa----------");
+        }
     }
 }
+
